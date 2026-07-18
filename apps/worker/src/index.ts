@@ -97,6 +97,7 @@ export type Env = {
     LINE_CHANNEL_ACCESS_TOKEN: string;
     API_KEY: string;
     LEGACY_API_KEY?: string;
+    GEMINI_API_KEY?: string; // [HIDDEN VALUE] hv-llm 自由入力コーチング用(未設定なら確定文言にフォールバック)
     LIFF_URL: string;
     LINE_CHANNEL_ID: string;
     LINE_LOGIN_CHANNEL_ID: string;

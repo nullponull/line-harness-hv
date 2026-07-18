@@ -164,7 +164,7 @@ webhook.post('/webhook', async (c) => {
   const processingPromise = (async () => {
     for (const event of body.events) {
       try {
-        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES);
+        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES, c.env.GEMINI_API_KEY);
       } catch (err) {
         console.error('Error handling webhook event:', err);
       }
@@ -185,6 +185,7 @@ async function handleEvent(
   workerUrl?: string,
   liffUrl?: string,
   r2?: R2Bucket,
+  geminiApiKey?: string,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =
@@ -546,11 +547,16 @@ async function handleEvent(
       .bind(logId, friend.id, incomingText, now)
       .run();
 
-    // [HIDDEN VALUE] コード連携 / メニュー(今の私・次の一歩)の確定処理。処理したら以降スキップ。
+    // [HIDDEN VALUE] ハイブリッド会話。制御(コード/メニュー)=確定配信、柔軟(自由入力)=Gemini。
     try {
       const { handleHiddenValueText } = await import('../services/hv-coach.js');
       const fr = await db.prepare('SELECT id, metadata FROM friends WHERE id = ?').bind(friend.id).first<{ id: string; metadata: string | null }>();
-      if (fr && event.replyToken && await handleHiddenValueText(db, lineClient, event.replyToken, fr, incomingText)) {
+      if (fr && event.replyToken) {
+        // 制御側: HV1コード・「今の私」・「次の一歩」を確定処理
+        if (await handleHiddenValueText(db, lineClient, event.replyToken, fr, incomingText)) return;
+        // 柔軟側: それ以外の自由入力は LLM コーチング(キー未設定なら確定文言にフォールバック)
+        const { handleHiddenValueLlm } = await import('../services/hv-llm.js');
+        await handleHiddenValueLlm({ GEMINI_API_KEY: geminiApiKey }, lineClient, event.replyToken, fr, incomingText);
         return;
       }
     } catch (e) { console.error('[hv-coach]', e); }
