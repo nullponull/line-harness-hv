@@ -8,7 +8,7 @@ workers_dev = true
 # デフォルト = テスト環境
 # 使い方: npx wrangler deploy
 # ═══════════════════════════════════════════════════════════════
-account_id = "YOUR_DEV_ACCOUNT_ID"
+account_id = "b243c69a7dcaf42420d4301ecb0a7a5f"
 
 [assets]
 directory = "dist/client"
@@ -22,7 +22,7 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "line-harness"
-database_id = "YOUR_DEV_D1_DATABASE_ID"
+database_id = "0d5c4b24-bb0c-419e-a7cd-dbcf70421758"
 
 [[r2_buckets]]
 binding = "IMAGES"
@@ -41,14 +41,16 @@ crons = ["*/5 * * * *", "0 */6 * * *"]
 # ═══════════════════════════════════════════════════════════════
 [vars]
 WORKER_NAME = "line-harness"
+ADMIN_ORIGIN = "https://line-harness-admin-79w.pages.dev"
+ADMIN_ALLOW_CROSS_SITE = "true"
 ADMIN_PAGES_PROJECT = "line-harness-admin"
 LIFF_PAGES_PROJECT = "line-harness-liff"
-D1_DATABASE_ID = "YOUR_DEV_D1_DATABASE_ID"
+D1_DATABASE_ID = "0d5c4b24-bb0c-419e-a7cd-dbcf70421758"
 MANIFEST_URL = "https://github.com/nullponull/line-harness-hv/releases/latest/download/release-manifest.json"
-WORKER_PUBLIC_URL = "https://line-harness.workers.dev"
-ADMIN_PUBLIC_URL = "https://line-harness-admin.pages.dev"
+WORKER_PUBLIC_URL = "https://line-harness.pokesapo0.workers.dev"
+ADMIN_PUBLIC_URL = "https://line-harness-admin-79w.pages.dev"
 LIFF_PUBLIC_URL = "https://line-harness-liff.pages.dev"
-CF_ACCOUNT_ID = "YOUR_DEV_ACCOUNT_ID"
+CF_ACCOUNT_ID = "b243c69a7dcaf42420d4301ecb0a7a5f"
 
 # ═══════════════════════════════════════════════════════════════
 # 本番環境
