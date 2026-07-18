@@ -912,7 +912,9 @@ async function scheduled(
     processReminderDeliveries(env.DB, defaultLineClient),
   );
   jobs.push(processQueuedBroadcasts(env.DB, defaultLineClient, env.WORKER_URL));
-  jobs.push(checkAccountHealth(env.DB));
+  // [HIDDEN VALUE hardening 2026-07-19] BAN検知(account health risk logging)を停止。
+  // 単一アカウント・正規Messaging API利用のため不要。復活する場合は監査所見を確認のこと。
+  // jobs.push(checkAccountHealth(env.DB));
 
   await Promise.allSettled(jobs);
 
