@@ -386,6 +386,15 @@ async function handleEvent(
 
     const postbackData = (event as unknown as { postback: { data: string } }).postback.data;
 
+    // [HIDDEN VALUE] 会話診断の回答(hvq=AXIS:V)を処理
+    if (postbackData.startsWith('hvq=') && event.replyToken) {
+      try {
+        const fr = await db.prepare('SELECT id, metadata FROM friends WHERE id = ?').bind(friend.id).first<{ id: string; metadata: string | null }>();
+        const { handleQuizPostback } = await import('../services/hv-quiz.js');
+        if (fr && await handleQuizPostback(db, lineClient, event.replyToken, fr, postbackData)) return;
+      } catch (e) { console.error('[hv-quiz]', e); }
+    }
+
     // Match postback data against auto_replies (exact match on keyword)
     const autoReplyQuery = lineAccountId
       ? `SELECT * FROM auto_replies WHERE is_active = 1 AND (line_account_id IS NULL OR line_account_id = ?) ORDER BY created_at ASC`
@@ -552,6 +561,9 @@ async function handleEvent(
       const { handleHiddenValueText } = await import('../services/hv-coach.js');
       const fr = await db.prepare('SELECT id, metadata FROM friends WHERE id = ?').bind(friend.id).first<{ id: string; metadata: string | null }>();
       if (fr && event.replyToken) {
+        // LINE会話診断トリガー
+        const { isQuizTrigger, startQuiz } = await import('../services/hv-quiz.js');
+        if (isQuizTrigger(incomingText)) { await startQuiz(db, lineClient, event.replyToken, fr); return; }
         // 制御側: HV1コード・「今の私」・「次の一歩」を確定処理
         if (await handleHiddenValueText(db, lineClient, event.replyToken, fr, incomingText)) return;
         // 柔軟側: それ以外の自由入力は LLM コーチング(キー未設定なら確定文言にフォールバック)

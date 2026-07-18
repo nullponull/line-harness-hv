@@ -149,7 +149,8 @@ function guideFlex(reason: '今の私' | '次の一歩'): unknown {
       footer: {
         type: 'box', layout: 'vertical', paddingAll: '14px', spacing: 'sm',
         contents: [
-          { type: 'button', style: 'primary', color: '#2563eb', action: { type: 'uri', label: '診断する(約5分・無料)', uri: `${SHINDAN}/diagnose` } },
+          { type: 'button', style: 'primary', color: '#06C755', action: { type: 'message', label: 'LINEでサクッと診断(8問)', text: '診断' } },
+          { type: 'button', style: 'secondary', action: { type: 'uri', label: 'じっくり測る(web・約5分)', uri: `${SHINDAN}/diagnose` } },
         ],
       },
     },
