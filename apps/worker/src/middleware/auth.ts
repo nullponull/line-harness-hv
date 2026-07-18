@@ -167,6 +167,7 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
     path.match(/^\/api\/rich-menu-groups\/external\/[^/]+\/image$/) ||
     path.startsWith('/api/liff/') ||
     // Admin login/logout — issue/clear the session cookie before auth exists.
+    path === '/api/hv-link' ||
     path === '/api/auth/login' ||
     path === '/api/auth/logout' ||
     path.startsWith('/auth/') ||

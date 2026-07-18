@@ -33,7 +33,7 @@ const webhook = new Hono<Env>();
 // 128 MB Cloudflare Workers memory ceiling.
 const MAX_WEBHOOK_BODY_SIZE = 1024 * 1024; // 1 MiB
 
-async function ensureFriendFromWebhookUser(
+export async function ensureFriendFromWebhookUser(
   db: D1Database,
   lineClient: LineClient,
   userId: string,

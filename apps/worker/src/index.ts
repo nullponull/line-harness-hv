@@ -28,6 +28,7 @@ import { DEFAULT_ACCOUNT_SETTINGS } from './services/booking-types.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { webhook } from './routes/webhook.js';
+import { hvLink } from './routes/hv-link.js';
 import { friends } from './routes/friends.js';
 import { tags } from './routes/tags.js';
 import { scenarios } from './routes/scenarios.js';
@@ -154,6 +155,7 @@ app.use('*', authMiddleware);
 
 // Mount route groups — MVP & Round 2
 app.route('/', webhook);
+app.route('/', hvLink);
 app.route('/', friends);
 app.route('/', tags);
 app.route('/', scenarios);
