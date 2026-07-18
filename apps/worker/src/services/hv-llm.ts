@@ -12,8 +12,52 @@ const POLES: Record<string, [string, string]> = {
   GRW: ['深く究める', '広く挑戦する'], STR: ['冷静に対処', '前向きに突破'],
 };
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const VERTEX_MODEL = 'gemini-2.5-flash';
+const VERTEX_REGION = 'us-central1';
 const SHINDAN = 'https://shindan.ai-media.co.jp';
+
+// ── Vertex AI OAuth (SA秘密鍵でJWT署名→トークン交換)。isolate内でトークンをキャッシュ ──
+interface SA { client_email: string; private_key: string; token_uri: string; project_id: string }
+let _tokCache: { token: string; exp: number } | null = null;
+
+function b64url(buf: ArrayBuffer | Uint8Array): string {
+  const b = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = '';
+  for (const c of b) s += String.fromCharCode(c);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function pemToDer(pem: string): ArrayBuffer {
+  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/\s+/g, '');
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+async function mintToken(sa: SA): Promise<string | null> {
+  const now = Math.floor(Date.now() / 1000);
+  if (_tokCache && _tokCache.exp - 60 > now) return _tokCache.token;
+  try {
+    const header = b64url(new TextEncoder().encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
+    const claims = b64url(new TextEncoder().encode(JSON.stringify({
+      iss: sa.client_email, scope: 'https://www.googleapis.com/auth/cloud-platform',
+      aud: sa.token_uri, iat: now, exp: now + 3600,
+    })));
+    const signingInput = `${header}.${claims}`;
+    const key = await crypto.subtle.importKey('pkcs8', pemToDer(sa.private_key),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(signingInput));
+    const jwt = `${signingInput}.${b64url(sig)}`;
+    const r = await fetch(sa.token_uri, {
+      method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    });
+    if (!r.ok) { console.error('[hv-llm] token', r.status, await r.text().catch(() => '')); return null; }
+    const d = await r.json() as { access_token?: string; expires_in?: number };
+    if (!d.access_token) return null;
+    _tokCache = { token: d.access_token, exp: now + (d.expires_in || 3600) };
+    return d.access_token;
+  } catch (e) { console.error('[hv-llm] mintToken', e); return null; }
+}
 
 function profileText(code: string): string | null {
   const e = decodeHvCode(code);
@@ -47,21 +91,25 @@ function savedCode(metadata: string | null): string | null {
   try { const m = JSON.parse(metadata); return m.hv_code || null; } catch (_) { return null; }
 }
 
-// Gemini Flash 呼び出し。キー未設定なら null(=呼び出し側が確定文言にフォールバック)。
-async function askGemini(apiKey: string, system: string, user: string): Promise<string | null> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+// Vertex AI Gemini 呼び出し。SA未設定/失敗なら null(=呼び出し側が確定文言にフォールバック)。
+async function askGemini(saJson: string, system: string, user: string): Promise<string | null> {
+  let sa: SA;
+  try { sa = JSON.parse(saJson); } catch (_) { return null; }
+  const token = await mintToken(sa);
+  if (!token) return null;
+  const url = `https://${VERTEX_REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${VERTEX_REGION}/publishers/google/models/${VERTEX_MODEL}:generateContent`;
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: 'user', parts: [{ text: user }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+    generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
     safetySettings: [
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
     ],
   };
   try {
-    const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    if (!r.ok) { console.error('[hv-llm] gemini', r.status, await r.text().catch(() => '')); return null; }
+    const r = await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) { console.error('[hv-llm] vertex', r.status, await r.text().catch(() => '')); return null; }
     const d = await r.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const t = d.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim();
     return t || null;
@@ -75,7 +123,7 @@ async function askGemini(apiKey: string, system: string, user: string): Promise<
  * - それ以外 → プロファイル注入して Gemini Flash
  */
 export async function handleHiddenValueLlm(
-  env: { GEMINI_API_KEY?: string }, line: LineClient, replyToken: string, friend: FriendRow, text: string,
+  env: { VERTEX_SA_JSON?: string }, line: LineClient, replyToken: string, friend: FriendRow, text: string,
 ): Promise<void> {
   const code = savedCode(friend.metadata);
   if (!code) {
@@ -83,11 +131,12 @@ export async function handleHiddenValueLlm(
     return;
   }
   const profile = profileText(code);
-  const key = env.GEMINI_API_KEY;
-  if (!profile || !key) {
+  const sa = env.VERTEX_SA_JSON;
+  if (!profile || !sa) {
     await line.replyMessage(replyToken, [{ type: 'text', text: '下のメニューから「今の私」「次の一歩」を選べます。より詳しい相談機能は準備中です。' } as never]);
     return;
   }
-  const answer = await askGemini(key, SYSTEM(profile), text.slice(0, 500));
+  const answer = await askGemini(sa, SYSTEM(profile), text.slice(0, 500));
   await line.replyMessage(replyToken, [{ type: 'text', text: answer || '少し混み合っているようです。時間をおいて、もう一度お願いします。メニューの「次の一歩」は今すぐ見られます。' } as never]);
 }
+

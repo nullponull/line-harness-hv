@@ -164,7 +164,7 @@ webhook.post('/webhook', async (c) => {
   const processingPromise = (async () => {
     for (const event of body.events) {
       try {
-        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES, c.env.GEMINI_API_KEY);
+        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES, c.env.VERTEX_SA_JSON);
       } catch (err) {
         console.error('Error handling webhook event:', err);
       }
@@ -185,7 +185,7 @@ async function handleEvent(
   workerUrl?: string,
   liffUrl?: string,
   r2?: R2Bucket,
-  geminiApiKey?: string,
+  vertexSaJson?: string,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =
@@ -556,7 +556,7 @@ async function handleEvent(
         if (await handleHiddenValueText(db, lineClient, event.replyToken, fr, incomingText)) return;
         // 柔軟側: それ以外の自由入力は LLM コーチング(キー未設定なら確定文言にフォールバック)
         const { handleHiddenValueLlm } = await import('../services/hv-llm.js');
-        await handleHiddenValueLlm({ GEMINI_API_KEY: geminiApiKey }, lineClient, event.replyToken, fr, incomingText);
+        await handleHiddenValueLlm({ VERTEX_SA_JSON: vertexSaJson }, lineClient, event.replyToken, fr, incomingText);
         return;
       }
     } catch (e) { console.error('[hv-coach]', e); }
@@ -718,3 +718,4 @@ async function resolveAutoReplyContent(
 }
 
 export { webhook };
+
