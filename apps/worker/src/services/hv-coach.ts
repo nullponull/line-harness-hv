@@ -98,7 +98,8 @@ export function typeCardFlex(code: string, e: Dims) {
       footer: {
         type: 'box', layout: 'vertical', paddingAll: '14px', spacing: 'sm',
         contents: [
-          { type: 'button', style: 'primary', height: 'md', color: '#2563eb', action: { type: 'uri', label: 'ふたりの形を重ねる', uri: `${SHINDAN}/pair?a=${code}` } },
+          { type: 'button', style: 'primary', height: 'md', color: '#2563eb', action: { type: 'uri', label: 'わたしの取扱説明書', uri: `${SHINDAN}/manual?code=${code}` } },
+          { type: 'button', style: 'secondary', height: 'md', action: { type: 'uri', label: 'ふたりの相性を重ねる', uri: `${SHINDAN}/pair?a=${code}` } },
           { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '次の一歩を見る', text: '次の一歩' } },
         ],
       },
@@ -200,6 +201,25 @@ export async function handleHiddenValueText(
     const saved = loadDims(friend.metadata);
     if (saved) { await line.replyMessage(replyToken, [nextStepFlex(saved.dims) as never]); return true; }
     await line.replyMessage(replyToken, [guideFlex('次の一歩') as never]);
+    return true;
+  }
+  if (trimmed === '取説' || trimmed === '取扱説明書' || trimmed === 'トリセツ') {
+    const saved = loadDims(friend.metadata);
+    if (saved) {
+      await line.replyMessage(replyToken, [{
+        type: 'flex', altText: 'わたしの取扱説明書',
+        contents: { type: 'bubble', size: 'giga',
+          body: { type: 'box', layout: 'vertical', paddingAll: '18px', spacing: 'md', contents: [
+            { type: 'text', text: 'わたしの取扱説明書', size: 'xl', weight: 'bold', color: '#13233c' },
+            { type: 'text', text: '上司・同僚・部下・友人——渡す相手で「こう関わると力が出る」が変わります。渡す名刺のように使えます。', size: 'md', color: '#4e6076', wrap: true },
+          ] },
+          footer: { type: 'box', layout: 'vertical', paddingAll: '14px', contents: [
+            { type: 'button', style: 'primary', height: 'md', color: '#2563eb', action: { type: 'uri', label: '取扱説明書を開く', uri: `${SHINDAN}/manual?code=${saved.code}` } },
+          ] } },
+      } as never]);
+      return true;
+    }
+    await line.replyMessage(replyToken, [guideFlex('今の私') as never]);
     return true;
   }
   return false;
