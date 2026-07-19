@@ -64,42 +64,42 @@ export function typeCardFlex(code: string, e: Dims) {
   return {
     type: 'flex', altText: `あなたの型カード（${strong.label}）`,
     contents: {
-      type: 'bubble', size: 'mega',
+      type: 'bubble', size: 'giga',
       header: {
         type: 'box', layout: 'vertical', paddingAll: '18px', backgroundColor: '#2563eb',
         contents: [
-          { type: 'text', text: 'HIDDEN VALUE', size: 'xs', color: '#bcd3ff', weight: 'bold' },
-          { type: 'text', text: 'あなたの効き方の型', size: 'lg', color: '#ffffff', weight: 'bold', margin: 'sm' },
+          { type: 'text', text: 'HIDDEN VALUE', size: 'sm', color: '#bcd3ff', weight: 'bold' },
+          { type: 'text', text: 'あなたの効き方の型', size: 'xl', color: '#ffffff', weight: 'bold', margin: 'sm' },
         ],
       },
       body: {
         type: 'box', layout: 'vertical', paddingAll: '18px', spacing: 'md',
         contents: [
-          { type: 'text', text: `一番はっきり出た強み`, size: 'sm', color: '#8896a8' },
-          { type: 'text', text: `${DIMLABEL[strong.dim]}：${strong.label}`, size: 'xl', weight: 'bold', color: '#b45309', wrap: true },
-          { type: 'text', text: strong.how, size: 'md', color: '#4e6076', wrap: true },
+          { type: 'text', text: `一番はっきり出た強み`, size: 'md', color: '#8896a8' },
+          { type: 'text', text: `${DIMLABEL[strong.dim]}：${strong.label}`, size: 'xxl', weight: 'bold', color: '#b45309', wrap: true },
+          { type: 'text', text: strong.how, size: 'lg', color: '#4e6076', wrap: true },
           { type: 'separator', margin: 'lg' },
-          { type: 'text', text: '組織の中での効き方', size: 'sm', color: '#8896a8', margin: 'lg' },
+          { type: 'text', text: '組織の中での効き方', size: 'md', color: '#8896a8', margin: 'lg' },
           ...frames.map((f) => ({
             type: 'box', layout: 'baseline', spacing: 'sm',
             contents: [
-              { type: 'text', text: f.frame, size: 'md', color: '#8896a8', flex: 4 },
-              { type: 'text', text: f.type, size: 'md', weight: 'bold', color: '#13233c', flex: 5, wrap: true },
+              { type: 'text', text: f.frame, size: 'lg', color: '#8896a8', flex: 4 },
+              { type: 'text', text: f.type, size: 'lg', weight: 'bold', color: '#13233c', flex: 5, wrap: true },
             ],
           })),
           { type: 'separator', margin: 'lg' },
           { type: 'box', layout: 'baseline', margin: 'lg', contents: [
-            { type: 'text', text: 'PAIR CODE', size: 'xs', color: '#8896a8', flex: 3 },
-            { type: 'text', text: code, size: 'sm', weight: 'bold', color: '#2563eb', flex: 5 },
+            { type: 'text', text: 'PAIR CODE', size: 'sm', color: '#8896a8', flex: 3 },
+            { type: 'text', text: code, size: 'lg', weight: 'bold', color: '#2563eb', flex: 5 },
           ] },
-          { type: 'text', text: '90日後に「もう一度測ると傾きが見える」リマインドを1通お送りします。', size: 'xs', color: '#8896a8', wrap: true, margin: 'md' },
+          { type: 'text', text: '90日後に「もう一度測ると傾きが見える」リマインドを1通お送りします。', size: 'sm', color: '#8896a8', wrap: true, margin: 'md' },
         ],
       },
       footer: {
         type: 'box', layout: 'vertical', paddingAll: '14px', spacing: 'sm',
         contents: [
-          { type: 'button', style: 'primary', color: '#2563eb', action: { type: 'uri', label: 'ふたりの形を重ねる', uri: `${SHINDAN}/pair?a=${code}` } },
-          { type: 'button', style: 'secondary', action: { type: 'message', label: '次の一歩を見る', text: '次の一歩' } },
+          { type: 'button', style: 'primary', height: 'md', color: '#2563eb', action: { type: 'uri', label: 'ふたりの形を重ねる', uri: `${SHINDAN}/pair?a=${code}` } },
+          { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '次の一歩を見る', text: '次の一歩' } },
         ],
       },
     },
@@ -111,20 +111,20 @@ function nextStepFlex(e: Dims) {
   return {
     type: 'flex', altText: '次の一歩',
     contents: {
-      type: 'bubble',
+      type: 'bubble', size: 'giga',
       body: {
         type: 'box', layout: 'vertical', paddingAll: '18px', spacing: 'md',
         contents: [
-          { type: 'text', text: '次の一歩', size: 'lg', weight: 'bold', color: '#13233c' },
-          { type: 'text', text: `あなたの「${s.label}」を、キャリアの武器に育てる`, size: 'sm', color: '#4e6076', wrap: true },
+          { type: 'text', text: '次の一歩', size: 'xl', weight: 'bold', color: '#13233c' },
+          { type: 'text', text: `あなたの「${s.label}」を、キャリアの武器に育てる`, size: 'md', color: '#4e6076', wrap: true },
           { type: 'separator', margin: 'md' },
-          { type: 'text', text: s.how, size: 'md', color: '#13233c', wrap: true, margin: 'md' },
-          { type: 'text', text: '戻せる範囲で、まず1つ。90日後の再測定で、この軸が動いたか答え合わせします。', size: 'xs', color: '#8896a8', wrap: true, margin: 'md' },
+          { type: 'text', text: s.how, size: 'lg', color: '#13233c', wrap: true, margin: 'md' },
+          { type: 'text', text: '戻せる範囲で、まず1つ。90日後の再測定で、この軸が動いたか答え合わせします。', size: 'sm', color: '#8896a8', wrap: true, margin: 'md' },
         ],
       },
       footer: {
         type: 'box', layout: 'vertical', paddingAll: '14px',
-        contents: [{ type: 'button', style: 'secondary', action: { type: 'uri', label: 'もっと詳しく(定番の一冊)', uri: SHINDAN } }],
+        contents: [{ type: 'button', style: 'secondary', height: 'md', action: { type: 'uri', label: 'もっと詳しく(定番の一冊)', uri: SHINDAN } }],
       },
     },
   };
@@ -136,21 +136,21 @@ function guideFlex(reason: '今の私' | '次の一歩'): unknown {
   return {
     type: 'flex', altText: '診断のご案内',
     contents: {
-      type: 'bubble',
+      type: 'bubble', size: 'giga',
       body: {
         type: 'box', layout: 'vertical', paddingAll: '18px', spacing: 'md',
         contents: [
-          { type: 'text', text: head, size: 'lg', weight: 'bold', color: '#13233c', wrap: true },
-          { type: 'text', text: '30秒で市場の中の位置、約5分であなたの「型」まで分かります。肩書きではなく、任されているもので測る無料診断です。', size: 'md', color: '#4e6076', wrap: true },
+          { type: 'text', text: head, size: 'xl', weight: 'bold', color: '#13233c', wrap: true },
+          { type: 'text', text: '30秒で市場の中の位置、約5分であなたの「型」まで分かります。肩書きではなく、任されているもので測る無料診断です。', size: 'lg', color: '#4e6076', wrap: true },
           { type: 'separator', margin: 'md' },
-          { type: 'text', text: 'もう測った方は、結果画面の「ペア相性コード」(HV1で始まる8桁)をこのトークに送ってください。型カードをお作りします。', size: 'xs', color: '#8896a8', wrap: true, margin: 'md' },
+          { type: 'text', text: 'もう測った方は、結果画面の「ペア相性コード」(HV1で始まる8桁)をこのトークに送ってください。型カードをお作りします。', size: 'sm', color: '#8896a8', wrap: true, margin: 'md' },
         ],
       },
       footer: {
         type: 'box', layout: 'vertical', paddingAll: '14px', spacing: 'sm',
         contents: [
-          { type: 'button', style: 'primary', color: '#06C755', action: { type: 'message', label: 'LINEでサクッと診断(8問)', text: '診断' } },
-          { type: 'button', style: 'secondary', action: { type: 'uri', label: 'じっくり測る(web・約5分)', uri: `${SHINDAN}/diagnose` } },
+          { type: 'button', style: 'primary', height: 'md', color: '#06C755', action: { type: 'message', label: 'LINEでサクッと診断(8問)', text: '診断' } },
+          { type: 'button', style: 'secondary', height: 'md', action: { type: 'uri', label: 'じっくり測る(web・約5分)', uri: `${SHINDAN}/diagnose` } },
         ],
       },
     },
