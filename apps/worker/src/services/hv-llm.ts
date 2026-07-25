@@ -101,7 +101,8 @@ async function askGemini(saJson: string, system: string, user: string): Promise<
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: 'user', parts: [{ text: user }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
+    // thinkingBudget:0 必須 — gemini-2.5系はthinkingが出力予算を食い本文が途切れる(2026-07-23 slope-lp側feelcheckで検出した同型バグの予防)
+    generationConfig: { temperature: 0.7, maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
     safetySettings: [
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
