@@ -122,7 +122,7 @@ const SHINDAN = 'https://shindan.ai-media.co.jp';
 
 // 「気になる子と相性を見る」ボタンを押した直後に出す案内文。
 export const PAIR_WAIT_PROMPT =
-  '相手のコードを送ってください。まだ測っていない子には、下のメッセージを転送してください。';
+  '相手から届いたメッセージやリンクを、そのままこのトークに送ってください。コードだけでも大丈夫です。\nまだ測っていない子には、下のメッセージを転送してください。';
 
 // 転送用の招待メッセージ(本人のコード入り)。
 export function inviteMessageText(code: string): string {

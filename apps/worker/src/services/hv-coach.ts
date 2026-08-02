@@ -34,8 +34,12 @@ export function decodeHvCode(s: string): Dims | null {
 }
 
 export function findHvCode(text: string): string | null {
-  const m = (text || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/HV1[0-9ABC]{8}/);
-  return m ? m[0] : null;
+  // 全角・小文字・記号・URL混じりを吸収し、手入力の定番の間違い(O→0 / I,L→1)も直す。
+  const flat = (text || '').normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const m = flat.match(/HV1[0-9ABCOIL]{8}/);
+  if (!m) return null;
+  const fixed = 'HV1' + m[0].slice(3).replace(/O/g, '0').replace(/[IL]/g, '1');
+  return /^HV1[0-9ABC]{8}$/.test(fixed) ? fixed : null;
 }
 
 function org3(e: Dims) {
