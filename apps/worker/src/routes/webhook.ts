@@ -395,6 +395,15 @@ async function handleEvent(
       } catch (e) { console.error('[hv-quiz]', e); }
     }
 
+    // [HIDDEN VALUE] コード受信時の「相性を見る/自分のコードを更新する」選択(hvpc=pair|self:CODE)を処理
+    if (postbackData.startsWith('hvpc=') && event.replyToken) {
+      try {
+        const fr = await db.prepare('SELECT id, metadata FROM friends WHERE id = ?').bind(friend.id).first<{ id: string; metadata: string | null }>();
+        const { handlePairChoicePostback } = await import('../services/hv-coach.js');
+        if (fr && await handlePairChoicePostback(db, lineClient, event.replyToken, fr, postbackData)) return;
+      } catch (e) { console.error('[hv-coach]', e); }
+    }
+
     // Match postback data against auto_replies (exact match on keyword)
     const autoReplyQuery = lineAccountId
       ? `SELECT * FROM auto_replies WHERE is_active = 1 AND (line_account_id IS NULL OR line_account_id = ?) ORDER BY created_at ASC`

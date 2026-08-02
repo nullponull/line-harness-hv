@@ -179,6 +179,27 @@ function loadDims(metadata: string | null): { code: string; dims: Dims } | null 
 
 interface FriendRow { id: string; metadata: string | null }
 
+// コード受信時、「相手として扱うか／自分のコードを更新するか」を選ばせる必要があるかどうかの純粋判定。
+// 待ち受け中でなく、本人のコードが保存済みで、届いたコードがそれと違うときだけ true。
+export function shouldAskWhichCode(params: { pairWaitActive: boolean; savedCode: string | null; incomingCode: string }): boolean {
+  return !params.pairWaitActive && !!params.savedCode && params.savedCode !== params.incomingCode;
+}
+
+// 「どちらにしますか」の選択メッセージ。押されたときにどのコードだったか復元できるよう、
+// postback data (hvpc=<pair|self>:<CODE>) にコードを載せる。
+function askWhichCodeMessage(incomingCode: string): unknown {
+  return {
+    type: 'text',
+    text: 'コードを受け取りました。どちらにしますか。',
+    quickReply: {
+      items: [
+        { type: 'action', action: { type: 'postback', label: 'この人と相性を見る', data: `hvpc=pair:${incomingCode}`, displayText: 'この人と相性を見る' } },
+        { type: 'action', action: { type: 'postback', label: '自分のコードを更新する', data: `hvpc=self:${incomingCode}`, displayText: '自分のコードを更新する' } },
+      ],
+    },
+  };
+}
+
 /**
  * HIDDEN VALUE 固有のテキスト処理。処理したら true を返す(webhook側は以降をスキップ)。
  * - HV1コード → 型カード + dims保存 + 90日シナリオ登録
@@ -193,16 +214,23 @@ export async function handleHiddenValueText(
   if (code) {
     const dims = decodeHvCode(code);
     if (!dims) return false;
+    const saved = loadDims(friend.metadata);
     // 「気になる子と相性を見る」で待ち受け中なら、届いたコードは相手のコードとして扱う(本人のコードは上書きしない)。
     // 待ち受けが30分を過ぎていれば isPairWaitActive が false を返し、以降の通常フロー(自分のコード)に落ちる。
-    if (await isPairWaitActive(db, friend.id)) {
+    const pairWaitActive = await isPairWaitActive(db, friend.id);
+    if (pairWaitActive) {
       await clearPairWait(db, friend.id);
-      const saved = loadDims(friend.metadata);
       if (saved) {
         const partnerType = topStrength(dims);
         await line.replyMessage(replyToken, [pairCardFlex(saved.code, saved.dims, code, dims, partnerType.label) as never]);
         return true;
       }
+    }
+    // 待ち受け中でなく、本人のコードが保存済みで、届いたコードが違う場合は、勝手に判断せずその場で選ばせる。
+    // (友だちのコードをそのまま転送してくる中高生の手数を減らすための分岐)
+    if (shouldAskWhichCode({ pairWaitActive, savedCode: saved?.code ?? null, incomingCode: code })) {
+      await line.replyMessage(replyToken, [askWhichCodeMessage(code) as never]);
+      return true;
     }
     const meta = { ...(safeParse(friend.metadata)), hv_code: code, hv_dims: dims, hv_linked_at: new Date().toISOString() };
     await db.prepare('UPDATE friends SET metadata = ?, updated_at = ? WHERE id = ?')
@@ -279,6 +307,36 @@ export async function handleHiddenValueText(
     return true;
   }
   return false;
+}
+
+// askWhichCodeMessage のクイックリプライ(hvpc=pair:CODE / hvpc=self:CODE)を処理。処理したら true。
+export async function handlePairChoicePostback(
+  db: D1Database, line: LineClient, replyToken: string, friend: FriendRow, data: string,
+): Promise<boolean> {
+  const m = data.match(/^hvpc=(pair|self):(.+)$/);
+  if (!m) return false;
+  const choice = m[1] as 'pair' | 'self';
+  const code = m[2];
+  const dims = decodeHvCode(code);
+  if (!dims) return false;
+
+  if (choice === 'pair') {
+    const saved = loadDims(friend.metadata);
+    if (!saved) {
+      await line.replyMessage(replyToken, [{ type: 'text', text: 'まず自分のコードを送ってください' } as never]);
+      return true;
+    }
+    const partnerType = topStrength(dims);
+    await line.replyMessage(replyToken, [pairCardFlex(saved.code, saved.dims, code, dims, partnerType.label) as never]);
+    return true;
+  }
+
+  // choice === 'self': 従来どおり本人のコードとして保存し、型カードを返す。
+  const meta = { ...(safeParse(friend.metadata)), hv_code: code, hv_dims: dims, hv_linked_at: new Date().toISOString() };
+  await db.prepare('UPDATE friends SET metadata = ?, updated_at = ? WHERE id = ?')
+    .bind(JSON.stringify(meta), new Date(Date.now() + 9 * 3600_000).toISOString(), friend.id).run();
+  await line.replyMessage(replyToken, [typeCardFlex(code, dims) as never]);
+  return true;
 }
 
 function safeParse(s: string | null): Record<string, unknown> {
