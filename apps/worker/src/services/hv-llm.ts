@@ -152,7 +152,8 @@ async function askGemini(saJson: string, system: string, user: string): Promise<
 
 // 危機時の受け止め文。創作しない(docs/TEEN_COUNSELING_MODE.md 準拠)。HOTLINE_TEXT側に
 // 窓口一覧と「いますぐ危ないときは110/119」が含まれる。
-const CRISIS_ACK = 'つらいことを書いてくれてありがとうございます。ひとりで抱えなくていい話だと思います。';
+// 窓口文(HOTLINE_TEXT)が『ひとりで抱えなくていい話だと思います』で始まるため、受け止め文では繰り返さない。
+const CRISIS_ACK = 'つらいことを書いてくれてありがとうございます。';
 
 /**
  * 自由入力コーチング。hv-coach が処理しなかったテキストのみここに来る。
