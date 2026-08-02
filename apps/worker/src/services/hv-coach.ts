@@ -54,7 +54,7 @@ function org3(e: Dims) {
   });
 }
 
-function topStrength(e: Dims): { dim: Dim; label: string; how: string } {
+export function topStrength(e: Dims): { dim: Dim; label: string; how: string } {
   let best: Dim = 'COM', lean = -1;
   DIMS8.forEach((d) => { const L = Math.abs((e[d] ?? 2.5) - 2.5); if (L > lean) { lean = L; best = d; } });
   const hi = (e[best] ?? 2.5) >= 2.5;
@@ -63,10 +63,50 @@ function topStrength(e: Dims): { dim: Dim; label: string; how: string } {
 
 const SHINDAN = 'https://shindan.ai-media.co.jp';
 
+// 型キャラクター(動物)の対応表。正典は slope-lp の dist/type-anim.js(8軸×2極=16匹)。
+// 動物は「占い」ではなく測定結果の見出しなので、必ず型名(POLES/HOW)と一緒に出すこと。
+const TYPE_ANIMAL: Record<string, string> = {
+  'COM-lo': 'ツバメ', 'COM-hi': 'イルカ',
+  'DEC-lo': 'フクロウ', 'DEC-hi': 'リス',
+  'EMO-lo': 'ウミガメ', 'EMO-hi': 'インコ',
+  'SOC-lo': 'ネコ', 'SOC-hi': 'ミツバチ',
+  'THK-lo': 'モグラ', 'THK-hi': 'キリン',
+  'VAL-lo': 'ゾウ', 'VAL-hi': 'ビーバー',
+  'GRW-lo': 'クジラ', 'GRW-hi': 'ペンギン',
+  'STR-lo': 'ラクダ', 'STR-hi': 'カンガルー',
+};
+
+export interface TypeAnimal { dim: Dim; key: string; name: string; src: string }
+
+// 上位n軸(中庸2.5から遠い順、同率はDIMS8の並び順)の動物を返す。既定はカードで使う2匹。
+export function topAnimals(e: Dims, n = 2): TypeAnimal[] {
+  const ranked = [...DIMS8].sort((a, b) => Math.abs((e[b] ?? 2.5) - 2.5) - Math.abs((e[a] ?? 2.5) - 2.5));
+  return ranked.slice(0, n).map((d) => {
+    const key = `${d}-${(e[d] ?? 2.5) >= 2.5 ? 'hi' : 'lo'}`;
+    return { dim: d, key, name: TYPE_ANIMAL[key], src: `${SHINDAN}/img/type/${key}.png` };
+  });
+}
+
+// 動物を横並びにするFlexの部品(画像+名前)。型カード/相性カード共通。画像取得に失敗しても
+// 枠(box)自体は残るのでレイアウトは崩れない(LINE側でimageが空表示になるだけ)。
+export function animalRowFlex(animals: TypeAnimal[]): unknown {
+  return {
+    type: 'box', layout: 'horizontal', spacing: 'md', margin: 'md',
+    contents: animals.map((a) => ({
+      type: 'box', layout: 'vertical', flex: 1, spacing: 'xs',
+      contents: [
+        { type: 'image', url: a.src, size: 'full', aspectRatio: '1:1', aspectMode: 'fit' },
+        { type: 'text', text: a.name, size: 'xs', color: '#8896a8', align: 'center', wrap: true },
+      ],
+    })),
+  };
+}
+
 // 型カード (Flex bubble)。8軸コードから確定生成。絵文字なし・HVデザイン(白×青×金)。
 export function typeCardFlex(code: string, e: Dims) {
   const frames = org3(e);
   const strong = topStrength(e);
+  const animals = topAnimals(e);
   return {
     type: 'flex', altText: `あなたの型カード（${strong.label}）`,
     contents: {
@@ -84,6 +124,7 @@ export function typeCardFlex(code: string, e: Dims) {
           { type: 'text', text: `一番はっきり出た強み`, size: 'md', color: '#8896a8' },
           { type: 'text', text: `${DIMLABEL[strong.dim]}：${strong.label}`, size: 'xxl', weight: 'bold', color: '#b45309', wrap: true },
           { type: 'text', text: strong.how, size: 'lg', color: '#4e6076', wrap: true },
+          animalRowFlex(animals),
           { type: 'separator', margin: 'lg' },
           { type: 'text', text: '組織の中での効き方', size: 'md', color: '#8896a8', margin: 'lg' },
           ...frames.map((f) => ({

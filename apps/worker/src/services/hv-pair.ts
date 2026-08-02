@@ -1,7 +1,7 @@
 // [HIDDEN VALUE] ふたりの相性(トーク内完結)。ペアコード2つから確定文言で「付き合い方」を出す(LLM不使用)。
 // 正典は slope-lp の shared/pair-advice.js。文言を変えるときは両方直す。
 // 相性に点数・順位・優劣はつけない。差は「翻訳が必要な場所」、同じは「噛み合う場所」として扱う。
-import type { Dims } from './hv-coach.js';
+import { animalRowFlex, topAnimals, topStrength, type Dims } from './hv-coach.js';
 
 // 軸ごとの一言。
 //   diff: [自分が低い側で相手が高い側のときの助言, 自分が高い側で相手が低い側のときの助言]
@@ -139,6 +139,10 @@ export function pairCardFlex(
   partnerTypeLabel?: string,
 ): unknown {
   const advice = pairAdvice(selfDims, partnerDims);
+  const selfType = topStrength(selfDims);
+  const partnerLabel = partnerTypeLabel || topStrength(partnerDims).label;
+  const selfAnimals = topAnimals(selfDims);
+  const partnerAnimals = topAnimals(partnerDims);
 
   const translateRows = advice.translate.map((r) => ({
     type: 'box',
@@ -161,11 +165,14 @@ export function pairCardFlex(
   }));
 
   const sections: unknown[] = [];
-  if (partnerTypeLabel) {
-    sections.push({ type: 'text', text: '相手の型', size: 'sm', color: '#8896a8' });
-    sections.push({ type: 'text', text: partnerTypeLabel, size: 'lg', weight: 'bold', color: '#b45309', wrap: true, margin: 'xs' });
-    sections.push({ type: 'separator', margin: 'lg' });
-  }
+  sections.push({ type: 'text', text: 'あなたの型', size: 'sm', color: '#8896a8' });
+  sections.push({ type: 'text', text: selfType.label, size: 'lg', weight: 'bold', color: '#b45309', wrap: true, margin: 'xs' });
+  sections.push(animalRowFlex(selfAnimals));
+  sections.push({ type: 'separator', margin: 'lg' });
+  sections.push({ type: 'text', text: '相手の型', size: 'sm', color: '#8896a8', margin: 'lg' });
+  sections.push({ type: 'text', text: partnerLabel, size: 'lg', weight: 'bold', color: '#b45309', wrap: true, margin: 'xs' });
+  sections.push(animalRowFlex(partnerAnimals));
+  sections.push({ type: 'separator', margin: 'lg' });
   if (translateRows.length > 0) {
     sections.push({ type: 'text', text: '翻訳が必要な場所', size: 'md', color: '#8896a8', margin: 'lg' });
     sections.push(...translateRows);
