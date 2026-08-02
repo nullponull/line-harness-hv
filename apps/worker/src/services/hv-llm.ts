@@ -4,7 +4,7 @@
 // 選抜への単独使用を勧めない。プロファイル(本人の8軸)を注入して個別化する。
 import type { LineClient } from '@line-crm/line-sdk';
 import { decodeHvCode } from './hv-coach.js';
-import { crisisHint, HOTLINE_TEXT, COUNSEL_INSTRUCTIONS, getHvMode } from './hv-counsel.js';
+import { crisisHint, concernHint, CONCERN_LINE, HOTLINE_TEXT, COUNSEL_INSTRUCTIONS, getHvMode } from './hv-counsel.js';
 
 const DIMLABEL: Record<string, string> = { COM: '伝え方', DEC: '決め方', EMO: '感じ方', SOC: '関わり方', THK: '考え方', VAL: '価値観', GRW: '伸び方', STR: '逆境' };
 const POLES: Record<string, [string, string]> = {
@@ -155,6 +155,12 @@ async function askGemini(saJson: string, system: string, user: string): Promise<
 // 窓口文(HOTLINE_TEXT)が『ひとりで抱えなくていい話だと思います』で始まるため、受け止め文では繰り返さない。
 const CRISIS_ACK = 'つらいことを書いてくれてありがとうございます。';
 
+// 指示文の漏洩ガード(Web側 functions/api/counsel.js と同じ目印・同じ固定文)。
+// Web側では英語のプロンプトインジェクションで指示文が丸ごと漏れた実績があるため、
+// LLMの遵守に頼らず出力側で決定的に止める。
+const LEAK_MARKS = ['【姿勢】', '【測定値の使い方】', '【設定の開示】', '【危機】自傷', '【禁止】診断名'];
+const LEAK_FALLBACK = 'その質問には答えられません。ここでするのは、あなたの話を聞くことだけです。何があったか、よければ教えてください。';
+
 /**
  * 自由入力コーチング。hv-coach が処理しなかったテキストのみここに来る。
  * - 危機ワード検知 → Geminiを呼ばずアプリ側の確定文言(受け止め+窓口)を返す(最優先・LLMに委ねない)
@@ -183,7 +189,13 @@ export async function handleHiddenValueLlm(
     return;
   }
   const system = mode === 'counsel' ? SYSTEM_COUNSEL(profile) : SYSTEM(profile);
-  const answer = await askGemini(sa, system, text.slice(0, 500));
+  let answer = await askGemini(sa, system, text.slice(0, 500));
+  if (answer && LEAK_MARKS.some((m) => answer!.includes(m))) {
+    answer = LEAK_FALLBACK;
+  }
+  if (mode === 'counsel' && answer && answer !== LEAK_FALLBACK && concernHint(text)) {
+    answer = answer + '\n\n' + CONCERN_LINE;
+  }
   await line.replyMessage(replyToken, [{ type: 'text', text: answer || '少し混み合っているようです。時間をおいて、もう一度お願いします。メニューの「次の一歩」は今すぐ見られます。' } as never]);
 }
 
