@@ -1,6 +1,7 @@
 // [HIDDEN VALUE] LINEコーチング — ペア相性コード(HV1+8)を鍵に、確定配信で型カード/メニューを返す。
 // 制御=タップ/コード=LLM不使用(ハイブリッド会話の「制御」側)。自由入力の柔軟対応は hv-llm.ts が担う。
 import type { LineClient } from '@line-crm/line-sdk';
+import { setHvMode } from './hv-counsel.js';
 
 const DIMS8 = ['COM', 'DEC', 'EMO', 'SOC', 'THK', 'VAL', 'GRW', 'STR'] as const;
 type Dim = (typeof DIMS8)[number];
@@ -101,6 +102,7 @@ export function typeCardFlex(code: string, e: Dims) {
           { type: 'button', style: 'primary', height: 'md', color: '#2563eb', action: { type: 'uri', label: 'わたしの取扱説明書', uri: `${SHINDAN}/manual?code=${code}` } },
           { type: 'button', style: 'secondary', height: 'md', action: { type: 'uri', label: 'ふたりの相性を重ねる', uri: `${SHINDAN}/pair?a=${code}` } },
           { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '次の一歩を見る', text: '次の一歩' } },
+          { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '悩みを相談する', text: '悩みを相談する' } },
         ],
       },
     },
@@ -220,6 +222,18 @@ export async function handleHiddenValueText(
       return true;
     }
     await line.replyMessage(replyToken, [guideFlex('今の私') as never]);
+    return true;
+  }
+  // 相談モードへの切替(型カードのボタン、または直接入力)。以降の自由入力は hv-llm が
+  // COUNSEL_INSTRUCTIONS で応答する(モードは hv_modes テーブルに保存・粘着)。
+  if (trimmed === '悩みを相談する') {
+    await setHvMode(db, friend.id, 'counsel');
+    await line.replyMessage(replyToken, [{ type: 'text', text: 'どんなことでも聞きます。学校のこと、友だちのこと、家のこと、なんでも大丈夫です。' } as never]);
+    return true;
+  }
+  if (trimmed === '仕事の相談にもどる') {
+    await setHvMode(db, friend.id, 'default');
+    await line.replyMessage(replyToken, [{ type: 'text', text: 'キャリア相談にもどりました。いつでも下のメニューから「悩みを相談する」に切り替えられます。' } as never]);
     return true;
   }
   return false;

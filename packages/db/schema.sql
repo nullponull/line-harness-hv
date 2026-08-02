@@ -921,3 +921,11 @@ CREATE TABLE IF NOT EXISTS rich_menu_areas (
 CREATE INDEX IF NOT EXISTS idx_rich_menu_pages_group    ON rich_menu_pages(group_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_rich_menu_areas_page     ON rich_menu_areas(page_id);
 CREATE INDEX IF NOT EXISTS idx_rich_menu_groups_account ON rich_menu_groups(account_id, status);
+
+-- [HIDDEN VALUE] LINEユーザーごとの会話モード(既定=キャリアコーチング / counsel=悩み相談)。
+-- migrations/050_hv_modes.sql と同じ定義。新規構築でも相談モードが保存されるようにする。
+CREATE TABLE IF NOT EXISTS hv_modes (
+  friend_id  TEXT PRIMARY KEY,
+  mode       TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);

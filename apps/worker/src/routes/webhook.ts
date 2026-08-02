@@ -568,7 +568,7 @@ async function handleEvent(
         if (await handleHiddenValueText(db, lineClient, event.replyToken, fr, incomingText)) return;
         // 柔軟側: それ以外の自由入力は LLM コーチング(キー未設定なら確定文言にフォールバック)
         const { handleHiddenValueLlm } = await import('../services/hv-llm.js');
-        await handleHiddenValueLlm({ VERTEX_SA_JSON: vertexSaJson }, lineClient, event.replyToken, fr, incomingText);
+        await handleHiddenValueLlm({ VERTEX_SA_JSON: vertexSaJson }, db, lineClient, event.replyToken, fr, incomingText);
         return;
       }
     } catch (e) { console.error('[hv-coach]', e); }

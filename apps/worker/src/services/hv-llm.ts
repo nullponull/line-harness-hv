@@ -4,6 +4,7 @@
 // 選抜への単独使用を勧めない。プロファイル(本人の8軸)を注入して個別化する。
 import type { LineClient } from '@line-crm/line-sdk';
 import { decodeHvCode } from './hv-coach.js';
+import { crisisHint, HOTLINE_TEXT, COUNSEL_INSTRUCTIONS, getHvMode } from './hv-counsel.js';
 
 const DIMLABEL: Record<string, string> = { COM: '伝え方', DEC: '決め方', EMO: '感じ方', SOC: '関わり方', THK: '考え方', VAL: '価値観', GRW: '伸び方', STR: '逆境' };
 const POLES: Record<string, [string, string]> = {
@@ -71,6 +72,38 @@ function profileText(code: string): string | null {
   return lines.join('\n');
 }
 
+// 相談モード用の8軸注入。既存 profileText() は「(強く出ている)」等キャリア向けの断定寄りの
+// 言い回しのため流用せず、悩み相談では「〜しやすい」という動きやすさの説明に言い換えた版を使う
+// (COUNSEL_INSTRUCTIONSの『測定値の使い方』『事実と仮説』の縛りに合わせる。弱点として書かない)。
+const POLES_LEAN: Record<string, [string, string]> = {
+  COM: ['順序立てて正確に伝えやすい', '柔軟に合わせて伝えやすい'],
+  DEC: ['じっくり考えてから決めやすい', '直感で素早く決めやすい'],
+  EMO: ['静かに深く感じやすい', '素直に気持ちを表しやすい'],
+  SOC: ['誠実な距離感で関わりやすい', '開かれた関わり方をしやすい'],
+  THK: ['本質を掘り下げて考えやすい', '全体を感じ取って考えやすい'],
+  VAL: ['自分の信念を大事にしやすい', '目の前の現実を動かすことを大事にしやすい'],
+  GRW: ['一つのことを深く究めやすい', '広くいろんなことに挑戦しやすい'],
+  STR: ['落ち着いて対処しやすい', '前向きに乗り越えやすい'],
+};
+
+function counselProfileText(code: string): string | null {
+  const e = decodeHvCode(code);
+  if (!e) return null;
+  const lines = Object.keys(POLES_LEAN).map((d) => {
+    const v = e[d as keyof typeof e] as number;
+    const side = v >= 2.5 ? POLES_LEAN[d][1] : POLES_LEAN[d][0];
+    return `- ${DIMLABEL[d]}: ${side}`;
+  });
+  return lines.join('\n');
+}
+
+const SYSTEM_COUNSEL = (profile: string) => `${COUNSEL_INSTRUCTIONS}
+
+相談者の測定プロファイル(本人が動きやすい形の参考。断定に使わない):
+${profile}
+
+LINEのトークなので絵文字は使わず、落ち着いた言葉で3〜6文程度に収めてください。`;
+
 const SYSTEM = (profile: string) => `あなたは「HIDDEN VALUE」の伴走コーチです。相談者の内面診断の結果(8軸・各軸は両極でどちらも強み・優劣なし)を踏まえて、キャリア・働き方の相談に短く具体的に答えます。
 
 相談者の測定プロファイル:
@@ -117,27 +150,39 @@ async function askGemini(saJson: string, system: string, user: string): Promise<
   } catch (e) { console.error('[hv-llm] fetch', e); return null; }
 }
 
+// 危機時の受け止め文。創作しない(docs/TEEN_COUNSELING_MODE.md 準拠)。HOTLINE_TEXT側に
+// 窓口一覧と「いますぐ危ないときは110/119」が含まれる。
+const CRISIS_ACK = 'つらいことを書いてくれてありがとうございます。ひとりで抱えなくていい話だと思います。';
+
 /**
  * 自由入力コーチング。hv-coach が処理しなかったテキストのみここに来る。
+ * - 危機ワード検知 → Geminiを呼ばずアプリ側の確定文言(受け止め+窓口)を返す(最優先・LLMに委ねない)
  * - プロファイル未連携 → 確定文言でコード送信を促す(LLM不使用)
  * - キー未設定 → 確定文言でメニュー誘導(LLM不使用)
- * - それ以外 → プロファイル注入して Gemini Flash
+ * - それ以外 → プロファイル注入して Gemini Flash(mode='counsel' なら COUNSEL_INSTRUCTIONS を使用)
  */
 export async function handleHiddenValueLlm(
-  env: { VERTEX_SA_JSON?: string }, line: LineClient, replyToken: string, friend: FriendRow, text: string,
+  env: { VERTEX_SA_JSON?: string }, db: D1Database, line: LineClient, replyToken: string, friend: FriendRow, text: string,
 ): Promise<void> {
+  // 危機時ルーティングは最優先。ブロックや会話終了はしない(以降も通常どおり応答を続けられる)。
+  if (crisisHint(text)) {
+    await line.replyMessage(replyToken, [{ type: 'text', text: `${CRISIS_ACK}\n${HOTLINE_TEXT}` } as never]);
+    return;
+  }
   const code = savedCode(friend.metadata);
   if (!code) {
     await line.replyMessage(replyToken, [{ type: 'text', text: 'ご相談ありがとうございます。まず診断結果の「ペア相性コード」(HV1で始まる8桁)を送っていただくと、あなたの型に合わせてお答えできます。\nまだの方はこちら → ' + SHINDAN + '/diagnose' } as never]);
     return;
   }
-  const profile = profileText(code);
   const sa = env.VERTEX_SA_JSON;
+  const mode = await getHvMode(db, friend.id);
+  const profile = mode === 'counsel' ? counselProfileText(code) : profileText(code);
   if (!profile || !sa) {
     await line.replyMessage(replyToken, [{ type: 'text', text: '下のメニューから「今の私」「次の一歩」を選べます。より詳しい相談機能は準備中です。' } as never]);
     return;
   }
-  const answer = await askGemini(sa, SYSTEM(profile), text.slice(0, 500));
+  const system = mode === 'counsel' ? SYSTEM_COUNSEL(profile) : SYSTEM(profile);
+  const answer = await askGemini(sa, system, text.slice(0, 500));
   await line.replyMessage(replyToken, [{ type: 'text', text: answer || '少し混み合っているようです。時間をおいて、もう一度お願いします。メニューの「次の一歩」は今すぐ見られます。' } as never]);
 }
 

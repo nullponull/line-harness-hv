@@ -1010,3 +1010,10 @@ CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_external_id ON users (external_id);
 
 CREATE INDEX idx_users_phone ON users (phone);
+
+-- [HIDDEN VALUE] 会話モード(既定 / counsel)。migrations/050_hv_modes.sql と同じ定義。
+CREATE TABLE IF NOT EXISTS hv_modes (
+  friend_id  TEXT PRIMARY KEY,
+  mode       TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
