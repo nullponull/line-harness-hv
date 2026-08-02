@@ -2,6 +2,7 @@
 // 制御=タップ/コード=LLM不使用(ハイブリッド会話の「制御」側)。自由入力の柔軟対応は hv-llm.ts が担う。
 import type { LineClient } from '@line-crm/line-sdk';
 import { setHvMode } from './hv-counsel.js';
+import { pairCardFlex, PAIR_WAIT_PROMPT, inviteMessageText, startPairWait, isPairWaitActive, clearPairWait } from './hv-pair.js';
 
 const DIMS8 = ['COM', 'DEC', 'EMO', 'SOC', 'THK', 'VAL', 'GRW', 'STR'] as const;
 type Dim = (typeof DIMS8)[number];
@@ -101,6 +102,8 @@ export function typeCardFlex(code: string, e: Dims) {
         contents: [
           { type: 'button', style: 'primary', height: 'md', color: '#2563eb', action: { type: 'uri', label: 'わたしの取扱説明書', uri: `${SHINDAN}/manual?code=${code}` } },
           { type: 'button', style: 'secondary', height: 'md', action: { type: 'uri', label: 'ふたりの相性を重ねる', uri: `${SHINDAN}/pair?a=${code}` } },
+          { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '気になる子と相性を見る', text: '気になる子と相性を見る' } },
+          { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '友だちを誘う', text: '友だちを誘う' } },
           { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '次の一歩を見る', text: '次の一歩' } },
           { type: 'button', style: 'secondary', height: 'md', action: { type: 'message', label: '悩みを相談する', text: '悩みを相談する' } },
         ],
@@ -186,6 +189,17 @@ export async function handleHiddenValueText(
   if (code) {
     const dims = decodeHvCode(code);
     if (!dims) return false;
+    // 「気になる子と相性を見る」で待ち受け中なら、届いたコードは相手のコードとして扱う(本人のコードは上書きしない)。
+    // 待ち受けが30分を過ぎていれば isPairWaitActive が false を返し、以降の通常フロー(自分のコード)に落ちる。
+    if (await isPairWaitActive(db, friend.id)) {
+      await clearPairWait(db, friend.id);
+      const saved = loadDims(friend.metadata);
+      if (saved) {
+        const partnerType = topStrength(dims);
+        await line.replyMessage(replyToken, [pairCardFlex(saved.code, saved.dims, code, dims, partnerType.label) as never]);
+        return true;
+      }
+    }
     const meta = { ...(safeParse(friend.metadata)), hv_code: code, hv_dims: dims, hv_linked_at: new Date().toISOString() };
     await db.prepare('UPDATE friends SET metadata = ?, updated_at = ? WHERE id = ?')
       .bind(JSON.stringify(meta), new Date(Date.now() + 9 * 3600_000).toISOString(), friend.id).run();
@@ -222,6 +236,30 @@ export async function handleHiddenValueText(
       return true;
     }
     await line.replyMessage(replyToken, [guideFlex('今の私') as never]);
+    return true;
+  }
+  // 気になる子と相性を見る(型カードのボタン)。相手のコード待ち受けを開始し、招待メッセージも送る。
+  if (trimmed === '気になる子と相性を見る') {
+    const saved = loadDims(friend.metadata);
+    if (!saved) {
+      await line.replyMessage(replyToken, [{ type: 'text', text: 'まず自分のコードを送ってください' } as never]);
+      return true;
+    }
+    await startPairWait(db, friend.id);
+    await line.replyMessage(replyToken, [
+      { type: 'text', text: PAIR_WAIT_PROMPT } as never,
+      { type: 'text', text: inviteMessageText(saved.code) } as never,
+    ]);
+    return true;
+  }
+  // 友だちを誘う(型カードのボタン)。招待メッセージだけを返す(待ち受けは開始しない)。
+  if (trimmed === '友だちを誘う') {
+    const saved = loadDims(friend.metadata);
+    if (!saved) {
+      await line.replyMessage(replyToken, [{ type: 'text', text: 'まず自分のコードを送ってください' } as never]);
+      return true;
+    }
+    await line.replyMessage(replyToken, [{ type: 'text', text: inviteMessageText(saved.code) } as never]);
     return true;
   }
   // 相談モードへの切替(型カードのボタン、または直接入力)。以降の自由入力は hv-llm が

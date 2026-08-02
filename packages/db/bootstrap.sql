@@ -475,6 +475,17 @@ CREATE TABLE google_calendar_connections (
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
+CREATE TABLE hv_modes (
+  friend_id  TEXT PRIMARY KEY,
+  mode       TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE hv_pair_wait (
+  friend_id  TEXT PRIMARY KEY,
+  since      INTEGER NOT NULL
+);
+
 CREATE TABLE incoming_webhooks (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
@@ -1010,10 +1021,3 @@ CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_external_id ON users (external_id);
 
 CREATE INDEX idx_users_phone ON users (phone);
-
--- [HIDDEN VALUE] 会話モード(既定 / counsel)。migrations/050_hv_modes.sql と同じ定義。
-CREATE TABLE IF NOT EXISTS hv_modes (
-  friend_id  TEXT PRIMARY KEY,
-  mode       TEXT NOT NULL,
-  updated_at INTEGER NOT NULL
-);

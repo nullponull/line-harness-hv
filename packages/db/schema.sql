@@ -929,3 +929,10 @@ CREATE TABLE IF NOT EXISTS hv_modes (
   mode       TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- [HIDDEN VALUE] 「気になる子と相性を見る」の相手コード待ち受け状態(hv_modesとは別)。
+-- migrations/051_hv_pair_wait.sql と同じ定義。
+CREATE TABLE IF NOT EXISTS hv_pair_wait (
+  friend_id  TEXT PRIMARY KEY,
+  since      INTEGER NOT NULL
+);
