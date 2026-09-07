@@ -256,8 +256,14 @@ forms.post('/api/forms/:id/opened', async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
+    // [2026-09-07] 常に success:true を返すのをやめた。
+    // 開封の記録は利用者の操作を止める必要が無いので「非ブロッキング」の意図は正しいが、
+    // **失敗しても成功を返すと、壊れていることが誰にも分からない**。
+    // 実際に本番では form_opens テーブルが存在せず（マイグレーション未適用）、
+    // この経路は常に失敗しながら 200 を返し続けていた。
+    // 呼び出し側の動作は変えずに、記録できなかったことは応答に出す。
     console.error('POST /api/forms/:id/opened error:', err);
-    return c.json({ success: true }); // non-blocking, always succeed
+    return c.json({ success: false, recorded: false, error: 'not recorded' }, 200);
   }
 });
 
