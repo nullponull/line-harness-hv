@@ -39,6 +39,22 @@ npx wrangler d1 execute line-harness --remote --file=../../packages/db/migration
 適用後は **72 表**。定義と本番の差は `friend_scenarios_new` と `broadcasts_new` の2つだけで、
 これは 027 / 029 の途中生成用（rename で消える）なので**無いのが正しい**。
 
+## 表を作っただけでは足りなかった（列の追加分）
+
+表を作った直後に**列の検査**（`python3 ~/ops-weekly/schema_drift.py line-harness --columns`）を
+かけたところ、コードが INSERT する列がまだ足りなかった。
+
+- `events`: `target_type` `account_ids` `dedup_priority` `confirmation_message_extra`
+  `reminder_message_extra` `og_title` `og_description` `og_image_url`
+- `event_bookings`: `identity_key`
+
+037 で表を作ったあと、**040 / 041 / 043 が列を足していた**ため。
+既存の表にも触るファイルが混ざるので、**文ごとに実行し「duplicate column name」だけ
+読み飛ばす**形で当てた（038 / 040 / 041 / 042 / 043 / 044 / 046 / 047 / 049）。
+
+**表の有無だけを見た検査は途中までしか見ていない。** 列まで見て初めて
+「読めるが書けない」が見つかる。
+
 ## 検査のしかた（今後も同じ手で確かめる）
 
 ```bash
